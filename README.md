@@ -8,7 +8,7 @@ Este módulo levanta la base de datos PostgreSQL y ejecuta migraciones con Liqui
 
 ## Qué levanta
 
-- `db` (PostgreSQL 15) en `localhost:5432`
+- `db` (PostgreSQL 15) en `localhost:5432 o 192.168.0.24:5432 (En caso de usar una maquina virtual con adaptador puente, colocar la ip generada localmente en la maquina para el funcionamiento) `
 - `liquibase` (runner de migraciones)
 
 ## Cómo ejecutar
