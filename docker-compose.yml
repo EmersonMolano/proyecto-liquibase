@@ -1,0 +1,71 @@
+# ------------------------------------------------------------
+# DB LAYER (PostgreSQL + Liquibase)
+# Ejecutar primero:
+#   docker compose -f proyecto-liquibase/docker-compose.db.yml up -d --build
+# Qué hace:
+# - Levanta PostgreSQL en 5432
+# - Ejecuta migraciones de Liquibase y luego termina (restart: "no")
+# ------------------------------------------------------------
+services:
+  db:
+    # Motor de base de datos principal
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      # Credenciales y base usadas por backend/liquibase
+      POSTGRES_DB: tareas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Host:Container
+      - "5432:5432"
+    volumes:
+      # Persistencia de datos
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      # Espera a que PostgreSQL esté listo antes de lanzar Liquibase
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      app-network:
+        aliases:
+          # Alias de red que usa el backend: jdbc:postgresql://db:5432/...
+          - db
+
+  liquibase:
+    # Runner de migraciones (aplica schema + seed y sale)
+    image: liquibase/liquibase
+    container_name: liquibase_runner
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Changelog y scripts SQL
+      - ./:/liquibase/CHANGELOG
+      # Driver JDBC PostgreSQL
+      - ./DRIVERS:/liquibase/lib
+    working_dir: /liquibase/CHANGELOG
+    command:
+      - "--url=jdbc:postgresql://db:5432/tareas_db"
+      - "--driver=org.postgresql.Driver"
+      - "--classpath=/liquibase/lib/postgresql-42.7.10.jar"
+      - "--changeLogFile=changelog.yml"
+      - "--username=postgres"
+      - "--password=postgres"
+      - "update"
+    # Debe terminar al completar migraciones
+    restart: "no"
+    networks:
+      - app-network
+
+volumes:
+  # Volumen de persistencia de PostgreSQL
+  db_data:
+
+networks:
+  app-network:
+    # Red compartida entre DB, backend y frontend
+    name: api_app-network
+    driver: bridge
