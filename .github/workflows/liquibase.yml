@@ -1,0 +1,50 @@
+name: Liquibase / DB CI Pipeline
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+
+jobs:
+  compose-validate:
+    name: DB Compose Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate DB compose
+        run: docker compose -f docker-compose.db.yml config
+
+  liquibase-validate:
+    name: Liquibase Changelog Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate changelog syntax
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/liquibase/changelog" \
+            -w /liquibase/changelog \
+            liquibase/liquibase:latest \
+            --url="offline:postgresql?version=15" \
+            --changeLogFile=changelog.yml validate
+
+  sql-files-check:
+    name: SQL Files Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure SQL files exist
+        run: |
+          test -f CHANGES/DDl/00_EXTENCIONS/extencion.sql
+          test -f CHANGES/DDl/01_TABLES/01-ddl-tables.sql
+          test -f CHANGES/DML/00-INSERTS/02-dml-tables.sql
+          test -f ROLLBACKS/DDL/00_TABLES/01-drop-tables.sql
+          test -f ROLLBACKS/DML/00_INSERTS/02-drop-data.sql
